@@ -2,6 +2,16 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
+// ✅ Setup API headers globally
+axios.defaults.headers.common["Authorization"] =
+  `Bearer ${import.meta.env.VITE_API_TOKEN}`;
+axios.defaults.headers.common["X-Tenant"] = import.meta.env.VITE_TENANT_ID;
+axios.defaults.headers.common["Content-Type"] = "application/json";
+axios.defaults.headers.common["Accept"] = "application/json";
+
+// ✅ Debug log to check token is available
+console.log("API Token:", import.meta.env.VITE_API_TOKEN || "NOT SET");
+
 const locations = ref([]);
 const loading = ref(true);
 const showForm = ref(false);
@@ -27,10 +37,6 @@ const fetchLocations = async () => {
     const response = await axios.get(
       "https://my.1tool.com/suite/api/departments",
       {
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_API_TOKEN}`,
-          "X-Tenant": import.meta.env.VITE_TENANT_ID,
-        },
         params: {
           include: "country,parent",
           sort: "name",
@@ -40,6 +46,9 @@ const fetchLocations = async () => {
     locations.value = response.data.data;
   } catch (error) {
     console.error("API fetch failed:", error.response?.status, error.message);
+    if (error.response?.status === 401) {
+      alert("Unauthorized: Please check your API token or login credentials.");
+    }
   } finally {
     loading.value = false;
   }
@@ -59,12 +68,6 @@ const submitForm = async () => {
       method,
       url,
       data: newDepartment.value,
-      headers: {
-        Authorization: `Bearer ${import.meta.env.VITE_API_TOKEN}`,
-        "X-Tenant": import.meta.env.VITE_TENANT_ID,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
     });
 
     resetForm();
@@ -72,6 +75,8 @@ const submitForm = async () => {
   } catch (error) {
     if (error.response?.status === 422) {
       formErrors.value = error.response.data.errors || {};
+    } else if (error.response?.status === 401) {
+      alert("Unauthorized: Please check your API token.");
     } else {
       console.error("Form submit failed:", error.message);
     }
@@ -82,13 +87,7 @@ const deleteDepartment = async (id) => {
   if (!confirm("Are you sure you want to delete this department?")) return;
 
   try {
-    await axios.delete(`https://my.1tool.com/suite/api/departments/${id}`, {
-      headers: {
-        Authorization: `Bearer ${import.meta.env.VITE_API_TOKEN}`,
-        "X-Tenant": import.meta.env.VITE_TENANT_ID,
-      },
-    });
-
+    await axios.delete(`https://my.1tool.com/suite/api/departments/${id}`);
     await fetchLocations();
   } catch (error) {
     console.error("Delete failed:", error.message);
@@ -139,9 +138,7 @@ onMounted(fetchLocations);
 
     <!-- Slide-in Sidebar Form -->
     <div v-if="showForm" class="fixed inset-0 z-50 flex justify-end">
-      <!-- Optional backdrop -->
       <div class="absolute inset-0 bg-opacity-30" @click="resetForm" />
-
       <div
         class="relative w-full sm:w-96 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out"
       >
