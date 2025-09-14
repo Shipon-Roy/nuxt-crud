@@ -1,3 +1,6 @@
+<script setup></script>
 <template>
-  <h1>home</h1>
+  <div class="p-6">
+    <h1>Home</h1>
+  </div>
 </template>
